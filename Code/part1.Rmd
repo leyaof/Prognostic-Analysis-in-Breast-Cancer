@@ -1,0 +1,236 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(devtools)
+library(smmr)
+library(ggpubr)
+library(nnet)
+library(broom)
+```
+
+```{r}
+clinical_data = read.csv("data.csv")
+clinical_data
+```
+
+
+```{r}
+clinical_data = within(clinical_data, rm(id))
+clinical_data = within(clinical_data, rm(X))
+#clinical_data$diagnosis = factor(clinical_data$diagnosis, levels = c("B", "M"), labels = c(1,0))
+#clinical_data = clinical_data %>% convert(num(clinical_data$diagnosis))
+# B is 0, M is 1
+clinical_data
+```
+
+```{r}
+clinical_mean = clinical_data %>% select(diagnosis:fractal_dimension_mean)
+clinical_se = clinical_data %>% select(diagnosis, radius_se:fractal_dimension_se)
+clinical_worst = clinical_data %>% select(diagnosis, radius_worst:fractal_dimension_worst)
+```
+
+# Number of diagnosis in "M" and "B"
+```{r}
+ggplot(clinical_data, aes(x=diagnosis))+geom_bar()
+```
+
+
+# Plots for clinical_mean
+```{r}
+rm = ggplot(clinical_mean, aes(x=diagnosis, y= radius_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=radius_mean))+stat_qq()+stat_qq_line()
+```
+```{r}
+median_test(clinical_mean, radius_mean, diagnosis)
+```
+
+```{r}
+tm = ggplot(clinical_mean, aes(x=diagnosis, y= texture_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=texture_mean))+stat_qq()+stat_qq_line()
+```
+```{r}
+t.test(texture_mean~diagnosis, data=clinical_mean, var.equal=T)
+```
+
+```{r}
+pm = ggplot(clinical_mean, aes(x=diagnosis, y= perimeter_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=perimeter_mean))+stat_qq()+stat_qq_line()
+```
+```{r}
+t.test(perimeter_mean~diagnosis, data=clinical_mean)
+```
+
+```{r}
+am = ggplot(clinical_mean, aes(x=diagnosis, y= area_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=area_mean))+stat_qq()+stat_qq_line()
+```
+
+
+
+```{r}
+snm = ggplot(clinical_mean, aes(x=diagnosis, y= smoothness_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=smoothness_mean))+stat_qq()+stat_qq_line()
+```
+
+```{r}
+cnm = ggplot(clinical_mean, aes(x=diagnosis, y= compactness_mean)) + geom_boxplot()
+```
+
+```{r}
+cm = ggplot(clinical_mean, aes(x=diagnosis, y= concavity_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=concavity_mean))+stat_qq()+stat_qq_line()
+```
+
+```{r}
+cpm = ggplot(clinical_mean, aes(x=diagnosis, y= concave.points_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=concave.points_mean))+stat_qq()+stat_qq_line()
+```
+```{r}
+median_test(clinical_mean, concave.points_mean, diagnosis)
+```
+
+```{r}
+sm = ggplot(clinical_mean, aes(x=diagnosis, y= symmetry_mean)) + geom_boxplot()
+```
+```{r}
+ggplot(clinical_mean, aes(sample=symmetry_mean))+stat_qq()+stat_qq_line()
+```
+
+```{r}
+fdm = ggplot(clinical_mean, aes(x=diagnosis, y= fractal_dimension_mean)) + geom_boxplot()
+```
+
+```{r}
+ggarrange(rm, tm, pm, am, snm, cnm, cm, cpm, sm, fdm, ncol = 5 , nrow = 2)
+```
+
+# Plots for clinical_se
+
+```{r}
+rs = ggplot(clinical_se, aes(x=diagnosis, y= radius_se)) + geom_boxplot()
+```
+
+
+```{r}
+ts = ggplot(clinical_se, aes(x=diagnosis, y= texture_se)) + geom_boxplot()
+```
+
+
+```{r}
+ps = ggplot(clinical_se, aes(x=diagnosis, y= perimeter_se)) + geom_boxplot()
+```
+
+
+```{r}
+as = ggplot(clinical_se, aes(x=diagnosis, y= area_se)) + geom_boxplot()
+```
+
+
+```{r}
+sns = ggplot(clinical_se, aes(x=diagnosis, y= smoothness_se)) + geom_boxplot()
+```
+
+
+```{r}
+cns = ggplot(clinical_se, aes(x=diagnosis, y= compactness_se)) + geom_boxplot()
+```
+
+
+```{r}
+cs = ggplot(clinical_se, aes(x=diagnosis, y= concavity_se)) + geom_boxplot()
+```
+
+
+```{r}
+cps = ggplot(clinical_se, aes(x=diagnosis, y= concave.points_se)) + geom_boxplot()
+```
+
+
+```{r}
+ss = ggplot(clinical_se, aes(x=diagnosis, y= symmetry_se)) + geom_boxplot()
+```
+
+
+```{r}
+fds = ggplot(clinical_se, aes(x=diagnosis, y= fractal_dimension_se)) + geom_boxplot()
+```
+
+
+```{r}
+ggarrange(rs, ts, ps, as, sns, cns, cs, cps, ss, fds, ncol = 5 , nrow = 2)
+```
+
+# Plots for clinical_worst
+
+```{r}
+rw = ggplot(clinical_worst, aes(x=diagnosis, y= radius_worst)) + geom_boxplot()
+```
+
+
+```{r}
+tw = ggplot(clinical_worst, aes(x=diagnosis, y= texture_worst)) + geom_boxplot()
+```
+
+
+```{r}
+pw = ggplot(clinical_worst, aes(x=diagnosis, y= perimeter_worst)) + geom_boxplot()
+```
+
+
+```{r}
+aw = ggplot(clinical_worst, aes(x=diagnosis, y= area_worst)) + geom_boxplot()
+```
+
+
+```{r}
+snw = ggplot(clinical_worst, aes(x=diagnosis, y= smoothness_worst)) + geom_boxplot()
+```
+
+
+```{r}
+cnw = ggplot(clinical_worst, aes(x=diagnosis, y= compactness_worst)) + geom_boxplot()
+```
+
+
+```{r}
+cw = ggplot(clinical_worst, aes(x=diagnosis, y= concavity_worst)) + geom_boxplot()
+```
+
+
+```{r}
+cpw = ggplot(clinical_worst, aes(x=diagnosis, y= concave.points_worst)) + geom_boxplot()
+```
+
+
+```{r}
+sw = ggplot(clinical_worst, aes(x=diagnosis, y= symmetry_worst)) + geom_boxplot()
+```
+
+
+```{r}
+fdw = ggplot(clinical_worst, aes(x=diagnosis, y= fractal_dimension_worst)) + geom_boxplot()
+```
+
+
+```{r}
+ggarrange(rw, tw, pw, aw, snw, cnw, cw, cpw, sw, fdw + rremove("x.text"), ncol = 5 , nrow = 2)
+```

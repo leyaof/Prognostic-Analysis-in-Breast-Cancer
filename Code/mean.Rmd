@@ -1,0 +1,98 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(dplyr)
+library(devtools)
+install_github("nxskok/smmr")
+library(smmr)
+library(nnet)
+library(broom)
+```
+
+```{r}
+clinical_data = read.csv("data.csv")
+head(clinical_data)
+```
+
+
+```{r}
+clinical_data = within(clinical_data, rm(id))
+clinical_data = within(clinical_data, rm(X))
+#clinical_data$diagnosis = factor(clinical_data$diagnosis, levels = c("B", "M"), labels = c(1,0))
+#clinical_data = clinical_data %>% convert(num(clinical_data$diagnosis))
+# B is 0, M is 1
+head(clinical_data)
+```
+
+```{r}
+clinical_mean = clinical_data %>% select(diagnosis:fractal_dimension_mean)
+clinical_se = clinical_data %>% select(diagnosis, radius_se:fractal_dimension_se)
+clinical_worst = clinical_data %>% select(diagnosis, radius_worst:fractal_dimension_worst)
+head(clinical_mean)
+head(clinical_se)
+head(clinical_worst)
+```
+
+```{r include=FALSE}
+# Random selection for clinical_mean model building 
+library(caret)
+set.seed(999)
+partition_index_mean = createDataPartition(clinical_mean$diagnosis, p=0.5, list=FALSE)
+model_building_mean = clinical_mean[partition_index_mean,]
+validation_mean = clinical_mean[-partition_index_mean,]
+```
+
+
+```{r}
+model_mean = train(diagnosis~radius_mean + texture_mean + perimeter_mean + area_mean + smoothness_mean + compactness_mean + concavity_mean + concave.points_mean + symmetry_mean + fractal_dimension_mean, data=model_building_mean, method="glm", family="binomial")
+summary(model_mean)
+```
+
+```{r}
+model_mean$finalModel
+```
+
+```{r}
+exp(coef(model_mean$finalModel))
+```
+
+```{r}
+predict(model_mean, newdata=validation_mean)
+predict(model_mean, newdata=validation_mean, type="prob")
+```
+```{r}
+model_mean.1 = glm(diagnosis~radius_mean + texture_mean + perimeter_mean + area_mean + smoothness_mean + compactness_mean + concavity_mean + concave.points_mean + symmetry_mean + fractal_dimension_mean, data=model_building_mean, family="binomial")
+summary(model_mean.1)
+```
+
+```{r}
+library(MASS)
+step = stepAIC(model_mean.1, direction = "both")
+step$anova
+```
+
+```{r}
+
+model_mean.2 = glm(diagnosis ~ texture_mean + area_mean + smoothness_mean + concavity_mean, data=model_building_mean, family="binomial")
+```
+
+```{r}
+anova(model_mean.1, model_mean.2, test ="Chisq")
+```
+
+```{r}
+p = predict(model_mean.2, newdata=validation_mean, type="response")
+accuracy <- table(ifelse(p>0.5,"M","B"), validation_mean[,"diagnosis"])
+accuracy
+sum(diag(accuracy))/sum(accuracy)
+```
+
+
+```{r}
+model_mean.3 = train(diagnosis~texture_mean + area_mean + smoothness_mean + concavity_mean, data=model_building_mean, method="glm", family="binomial")
+p.1 = predict(model_mean.3, newdata=validation_mean)
+confusionMatrix(data=p.1, validation_mean$diagnosis)
+```

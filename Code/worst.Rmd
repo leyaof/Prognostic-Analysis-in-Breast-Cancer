@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+```{r}
+library(tidyverse)
+library(dplyr)
+library(devtools)
+install_github("nxskok/smmr")
+library(smmr)
+library(nnet)
+library(broom)
+```
+
+```{r}
+clinical_data = read.csv("data.csv")
+head(clinical_data)
+```
+
+```{r}
+clinical_data = within(clinical_data, rm(id))
+clinical_data = within(clinical_data, rm(X))
+#clinical_data$diagnosis = factor(clinical_data$diagnosis, levels = c("B", "M"), labels = c(1,0))
+#clinical_data = clinical_data %>% convert(num(clinical_data$diagnosis))
+# B is 0, M is 1
+head(clinical_data)
+```
+
+```{r}
+clinical_mean = clinical_data %>% select(diagnosis:fractal_dimension_mean)
+clinical_se = clinical_data %>% select(diagnosis, radius_se:fractal_dimension_se)
+clinical_worst = clinical_data %>% select(diagnosis, radius_worst:fractal_dimension_worst)
+head(clinical_mean)
+head(clinical_se)
+head(clinical_worst)
+```
+
+```{r include=FALSE}
+# Random selection for clinical_mean model building 
+library(caret)
+set.seed(999)
+partition_index_worst = createDataPartition(clinical_worst$diagnosis, p=0.5, list=FALSE)
+model_building_worst = clinical_worst[partition_index_worst,]
+validation_worst = clinical_worst[-partition_index_worst,]
+```
+
+
+```{r}
+model_worst = train(diagnosis~radius_worst + texture_worst + perimeter_worst + area_worst + smoothness_worst + compactness_worst + concavity_worst + concave.points_worst + symmetry_worst + fractal_dimension_worst, data=model_building_worst, method="glm", family="binomial")
+summary(model_worst)
+```
+
+```{r}
+model_worst$finalModel
+```
+
+```{r}
+exp(coef(model_worst$finalModel))
+```
+
+```{r}
+predict(model_worst, newdata=validation_worst)
+predict(model_worst, newdata=validation_worst, type="prob")
+```
+```{r}
+model_worst.1 = glm(diagnosis~radius_worst + texture_worst + perimeter_worst + area_worst + smoothness_worst + compactness_worst + concavity_worst + concave.points_worst + symmetry_worst + fractal_dimension_worst, data=model_building_worst, family="binomial")
+summary(model_worst.1)
+```
+
+```{r}
+library(MASS)
+step = stepAIC(model_worst.1, direction = "both")
+step$anova
+```
+
+```{r}
+
+model_worst.2 = glm(diagnosis ~ texture_worst + perimeter_worst + smoothness_worst, data=model_building_worst, family="binomial")
+summary(model_worst.2)
+```
+
+```{r}
+anova(model_worst.1, model_worst.2, test ="Chisq")
+```
+
+```{r}
+p = predict(model_worst.2, newdata=validation_worst, type="response")
+accuracy <- table(ifelse(p>0.5,"M","B"), validation_worst[,"diagnosis"])
+accuracy
+sum(diag(accuracy))/sum(accuracy)
+```
+
+
+```{r}
+model_worst.3 = train(diagnosis~texture_worst + perimeter_worst + smoothness_worst, data=model_building_worst, method="glm", family="binomial")
+p.1 = predict(model_worst.3, newdata=validation_worst)
+confusionMatrix(data=p.1, validation_worst$diagnosis)
+```
+```{r}
+model_worst.final = glm(diagnosis ~ texture_worst + perimeter_worst + smoothness_worst, data=clinical_worst, family="binomial")
+summary(model_worst.final)
+```
+
+```{r}
+library(car)
+VIF = vif(model_worst.final)
+VIF
+VIFbar = mean(vif(model_worst.final))
+VIFbar
+```
+
+
+```{r}
+p.2=predict(model_worst.final, type="response")
+clinical_worst = cbind(clinical_worst, p.2)
+```
+
+```{r}
+ggplot(clinical_worst, aes(x=texture_worst,y=p.2,colour=diagnosis))+geom_point()+geom_line()+ labs(title = "Probability vs texture_worst", y= "Probability") +theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+ggplot(clinical_worst, aes(x=perimeter_worst,y=p.2,colour=diagnosis))+geom_point()+geom_line()+ labs(title = "Probability vs perimeter_worst", y= "Probability") +theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+ggplot(clinical_worst, aes(x=smoothness_worst,y=p.2,colour=diagnosis))+geom_point()+geom_line()+ labs(title = "Probability vs smoothness_worst", y= "Probability") +theme(plot.title = element_text(hjust = 0.5))
+```
